@@ -23,6 +23,31 @@ export interface ShadowEntry {
   source: string;
 }
 
+export interface ButtonStyle {
+  selector: string;
+  backgroundColor: string | null;
+  color: string | null;
+  borderRadius: string;
+  padding: string;
+  fontWeight: string;
+  fontSize: string;
+  border: string;
+  boxShadow: string;
+  transition: string;
+  cursor: string;
+  textTransform: string;
+  letterSpacing: string;
+  gradient: string | null;
+}
+
+export interface InteractionTokens {
+  buttons: ButtonStyle[];
+  transitions: { property: string; duration: string; timing: string; count: number }[];
+  transforms: { value: string; source: string }[];
+  animations: { name: string; source: string }[];
+  cursors: { value: string; count: number }[];
+}
+
 export interface ScrapedTokens {
   url: string;
   domain: string;
@@ -58,5 +83,6 @@ export interface ScrapedTokens {
     large: number | null;
   };
   shadows: ShadowEntry[];
+  interactions: InteractionTokens;
   cssVariables: Record<string, string>;
 }

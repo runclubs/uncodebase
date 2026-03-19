@@ -320,10 +320,62 @@ export function generateDesignMd(tokens: ScrapedTokens, url: string): string {
     L.push("");
   }
 
-  // ── 6. COMPONENTS ──
+  // ── 5. COMPONENT ARCHITECTURE (ATOMIC DESIGN) ──
   L.push("---");
   L.push("");
-  L.push("## 5. Components");
+  L.push("## 5. Component Architecture (Atomic Design)");
+  L.push("");
+  L.push("Build UI by composing small, reusable pieces. Never write raw HTML with inline styles — always compose from atoms up.");
+  L.push("");
+
+  L.push("### Atoms");
+  L.push("Single-purpose, stateless building blocks. Each consumes design tokens via CSS variables.");
+  L.push("");
+  L.push("| Component | Props | Notes |");
+  L.push("|-----------|-------|-------|");
+  L.push("| `Button` | variant (primary / secondary / ghost), size (sm / md / lg), disabled | Solid fill or outline per variant |");
+  L.push("| `Input` | type (text / search / email), error, disabled | Bordered, focus ring |");
+  L.push("| `Badge` | variant (default / accent / muted) | Pill shape, small text |");
+  L.push("| `Typography` | as (h1–h4 / p / span / caption), weight | Maps to type scale |");
+  L.push("| `Icon` | name, size (sm / md / lg), color | Wraps SVG icons |");
+  L.push("| `Swatch` | color, label | Color preview circle + label |");
+  L.push("| `Divider` | orientation (horizontal / vertical) | 1px border-color line |");
+  L.push("");
+
+  L.push("### Molecules");
+  L.push("Combinations of 2–4 atoms that form a distinct UI pattern.");
+  L.push("");
+  L.push("| Component | Composed of | Notes |");
+  L.push("|-----------|-------------|-------|");
+  L.push("| `SearchBar` | Input + Button | Input with attached action button |");
+  L.push("| `Card` | Surface + Typography + optional Button | Elevated container with content |");
+  L.push("| `NavItem` | Icon + Typography | Navigation link with icon |");
+  L.push("| `FormField` | Typography (label) + Input + Typography (error) | Label, input, validation message |");
+  L.push("| `Tag` | Badge + Icon (optional close) | Removable pill |");
+  L.push("| `Stat` | Typography (value) + Typography (label) | Metric display |");
+  L.push("");
+
+  L.push("### Organisms");
+  L.push("Page-level sections composed of molecules and atoms.");
+  L.push("");
+  L.push("| Component | Composed of | Notes |");
+  L.push("|-----------|-------------|-------|");
+  L.push("| `Header` | Logo + NavItem[] + Button (CTA) | Sticky top bar |");
+  L.push("| `Hero` | Typography (h1 + p) + SearchBar or Button | Above-the-fold section |");
+  L.push("| `CardGrid` | Card[] | Responsive grid of cards |");
+  L.push("| `Footer` | NavItem[] + Typography + Icon[] (social) | Page bottom |");
+  L.push("| `Section` | Typography (heading) + any children | Generic page section wrapper |");
+  L.push("");
+
+  L.push("### Rules");
+  L.push("- Each component gets its own file");
+  L.push("- Components consume design tokens via CSS variables — never hardcode hex values");
+  L.push("- Atoms are stateless; state lives in organisms or page-level components");
+  L.push("- Compose upward: atoms → molecules → organisms → pages");
+  L.push("");
+
+  // ── 6. COMPONENT SPECS ──
+  L.push("## 6. Component Specs");
   L.push("");
 
   L.push("### Buttons");
@@ -341,10 +393,90 @@ export function generateDesignMd(tokens: ScrapedTokens, url: string): string {
   L.push(inferCardStyle(tokens));
   L.push("");
 
-  // ── 7. RULES ──
+  // ── 7. INTERACTIONS ──
+  L.push("## 7. Interactions & Micro-animations");
+  L.push("");
+
+  // Button styles
+  if (tokens.interactions.buttons.length > 0) {
+    L.push("### Button Styles Found");
+    L.push("");
+    for (const btn of tokens.interactions.buttons.slice(0, 4)) {
+      L.push(`**\`${btn.selector}\`**`);
+      if (btn.gradient) {
+        L.push(`- Background: gradient — \`${btn.gradient}\``);
+      } else if (btn.backgroundColor) {
+        L.push(`- Background: \`${btn.backgroundColor}\``);
+      }
+      if (btn.color) L.push(`- Text color: \`${btn.color}\``);
+      L.push(`- Border radius: \`${btn.borderRadius}\``);
+      L.push(`- Padding: \`${btn.padding}\``);
+      L.push(`- Font: ${btn.fontWeight} / ${btn.fontSize}`);
+      if (btn.textTransform !== "none") L.push(`- Text transform: ${btn.textTransform}`);
+      if (btn.letterSpacing !== "0") L.push(`- Letter spacing: ${btn.letterSpacing}`);
+      if (btn.border && btn.border !== "0px none rgb(0, 0, 0)") L.push(`- Border: \`${btn.border}\``);
+      if (btn.boxShadow) L.push(`- Shadow: \`${btn.boxShadow}\``);
+      if (btn.transition) L.push(`- Transition: \`${btn.transition}\``);
+      L.push("");
+    }
+  }
+
+  // Transitions
+  if (tokens.interactions.transitions.length > 0) {
+    L.push("### Transition Patterns");
+    L.push("");
+    L.push("| Property | Duration | Timing | Frequency |");
+    L.push("|----------|----------|--------|-----------|");
+    for (const t of tokens.interactions.transitions.slice(0, 8)) {
+      L.push(`| ${t.property} | ${t.duration} | ${t.timing} | ×${t.count} |`);
+    }
+    L.push("");
+
+    // Infer transition philosophy
+    const avgDuration = tokens.interactions.transitions
+      .map(t => parseFloat(t.duration))
+      .filter(d => !isNaN(d));
+    if (avgDuration.length > 0) {
+      const avg = avgDuration.reduce((a, b) => a + b, 0) / avgDuration.length;
+      if (avg <= 0.15) L.push("> Transitions are **snappy** (≤150ms) — interactions feel instant and responsive.");
+      else if (avg <= 0.3) L.push("> Transitions are **balanced** (150–300ms) — smooth without feeling sluggish.");
+      else L.push("> Transitions are **deliberate** (>300ms) — animated, elegant feel. Use ease-out curves.");
+      L.push("");
+    }
+  }
+
+  // Animations
+  if (tokens.interactions.animations.length > 0) {
+    L.push("### CSS Animations");
+    L.push("");
+    for (const a of tokens.interactions.animations) {
+      L.push(`- \`${a.name}\` — found on \`${a.source}\``);
+    }
+    L.push("");
+  }
+
+  // Interaction rules
+  L.push("### Interaction Rules");
+  L.push("");
+  L.push("- **Hover:** Use the transition durations above. Prefer `opacity`, `background-color`, or `box-shadow` transitions over `transform` for subtlety.");
+  if (tokens.interactions.buttons.some(b => b.gradient)) {
+    L.push("- **Gradients:** This brand uses gradients on interactive elements. Maintain gradient direction and stops.");
+  }
+  if (tokens.interactions.buttons.some(b => b.boxShadow)) {
+    L.push("- **Shadow on hover:** Elevate buttons/cards on hover by intensifying the existing shadow.");
+  }
+  if (tokens.interactions.buttons.some(b => b.textTransform !== "none")) {
+    L.push("- **Text transform:** Button text uses text-transform. Maintain this for consistency.");
+  }
+  L.push("- **Active:** `scale(0.98)` for tactile press feedback.");
+  L.push("- **Focus:** 2px ring with `var(--color-primary)` for accessibility.");
+  L.push("- **Disabled:** `opacity: 0.5`, `pointer-events: none`.");
+  L.push("");
+
+  // ── 8. RULES ──
   L.push("---");
   L.push("");
-  L.push("## 6. Rules for AI Generation");
+  L.push("## 8. Rules for AI Generation");
   L.push("");
 
   L.push("### Do:");
@@ -356,6 +488,11 @@ export function generateDesignMd(tokens: ScrapedTokens, url: string): string {
   if (tokens.shadows.length > 0) {
     L.push("- Replicate the shadow values defined above for elevation");
   }
+  L.push("- Match the **transition durations and timing** from the Interactions section");
+  if (tokens.interactions.buttons.some(b => b.gradient)) {
+    L.push("- Reproduce **gradients** on buttons and CTAs as specified");
+  }
+  L.push("- Use the exact button styles (padding, radius, weight) from the extracted patterns");
   L.push("");
 
   L.push("### Don't:");

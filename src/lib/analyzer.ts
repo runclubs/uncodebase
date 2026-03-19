@@ -90,7 +90,24 @@ export function analyzeTokens(tokens: ScrapedTokens): AnalyzerSuggestion[] {
     });
   }
 
-  // Check for odd font sizes that don't follow a scale
+  // Check for oversized font sizes
+  const h1 = tokens.typography.scale.find((s) => s.element === "H1");
+  if (h1 && h1.size > 80) {
+    suggestions.push({
+      type: "warning",
+      message: `H1 is ${h1.size}px — unusually large for web. Consider scaling down to 48-72px for readability. The extracted value may be from a hero/display context.`,
+    });
+  }
+
+  const oversized = tokens.typography.scale.filter((s) => s.size > 100);
+  if (oversized.length > 1) {
+    suggestions.push({
+      type: "improvement",
+      message: `${oversized.length} type sizes exceed 100px. Large display sizes often need manual capping for component use.`,
+    });
+  }
+
+
   const sizes = tokens.typography.scale.map((s) => s.size).sort((a, b) => a - b);
   if (sizes.length >= 3) {
     const ratios: number[] = [];
@@ -137,6 +154,40 @@ export function analyzeTokens(tokens: ScrapedTokens): AnalyzerSuggestion[] {
       type: "improvement",
       message: `${tokens.radius.values.length} different border-radius values. Consider consolidating to sm/md/lg/full.`,
     });
+  }
+
+  // Check for extreme radii
+  if (tokens.radius.small && tokens.radius.small > 20) {
+    suggestions.push({
+      type: "info",
+      message: `Smallest radius is ${tokens.radius.small}px — this design uses generous rounding. Buttons and inputs will appear pill-like.`,
+    });
+  }
+  if (tokens.radius.large && tokens.radius.large > 200) {
+    suggestions.push({
+      type: "warning",
+      message: `Large radius is ${tokens.radius.large}px — likely a pill/capsule shape. Avoid applying this to small elements where it may look distorted.`,
+    });
+  }
+
+  // ── Contrast check ──
+  if (tokens.colors.text && tokens.colors.background) {
+    const toLum = (hex: string) => {
+      const r = parseInt(hex.slice(1, 3), 16) / 255;
+      const g = parseInt(hex.slice(3, 5), 16) / 255;
+      const b = parseInt(hex.slice(5, 7), 16) / 255;
+      const toLinear = (c: number) => c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+    };
+    const textLum = toLum(tokens.colors.text.value);
+    const bgLum = toLum(tokens.colors.background.value);
+    const ratio = (Math.max(textLum, bgLum) + 0.05) / (Math.min(textLum, bgLum) + 0.05);
+    if (ratio < 4.5) {
+      suggestions.push({
+        type: "warning",
+        message: `Text/background contrast ratio is ${ratio.toFixed(1)}:1 — below WCAG AA (4.5:1). Consider adjusting for accessibility.`,
+      });
+    }
   }
 
   // ── Shadow analysis ──

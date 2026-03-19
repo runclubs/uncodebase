@@ -384,6 +384,125 @@ export async function POST(request: NextRequest) {
         .slice(0, 10);
 
       // ═══════════════════════════════════
+      // 8. INTERACTIONS — buttons, transitions, transforms, animations
+      // ═══════════════════════════════════
+
+      const buttonStyles: {
+        selector: string;
+        backgroundColor: string | null;
+        color: string | null;
+        borderRadius: string;
+        padding: string;
+        fontWeight: string;
+        fontSize: string;
+        border: string;
+        boxShadow: string;
+        transition: string;
+        cursor: string;
+        textTransform: string;
+        letterSpacing: string;
+        gradient: string | null;
+      }[] = [];
+
+      const btnSelectors = [
+        'button', '[role="button"]', 'a.btn', '.btn', '.button',
+        'input[type="submit"]', '[class*="cta"]', '[class*="CTA"]',
+      ];
+
+      const seenBtnStyles = new Set<string>();
+      for (const sel of btnSelectors) {
+        const els = Array.from(document.querySelectorAll(sel)).slice(0, 10);
+        for (const el of els) {
+          const s = getComputedStyle(el);
+          const bgHex = rgbToHex(s.backgroundColor);
+          const txtHex = rgbToHex(s.color);
+          // Dedupe by visual fingerprint
+          const fingerprint = `${bgHex}-${txtHex}-${s.borderRadius}-${s.padding}`;
+          if (seenBtnStyles.has(fingerprint)) continue;
+          seenBtnStyles.add(fingerprint);
+
+          // Detect gradient from background-image
+          const bgImg = s.backgroundImage;
+          const gradient = (bgImg && bgImg !== "none" && bgImg.includes("gradient")) ? bgImg : null;
+
+          buttonStyles.push({
+            selector: sel,
+            backgroundColor: bgHex,
+            color: txtHex,
+            borderRadius: s.borderRadius,
+            padding: s.padding,
+            fontWeight: s.fontWeight,
+            fontSize: s.fontSize,
+            border: s.border,
+            boxShadow: s.boxShadow === "none" ? "" : s.boxShadow,
+            transition: s.transition === "all 0s ease 0s" ? "" : s.transition,
+            cursor: s.cursor,
+            textTransform: s.textTransform,
+            letterSpacing: s.letterSpacing === "normal" ? "0" : s.letterSpacing,
+            gradient,
+          });
+        }
+      }
+
+      // Collect transitions across all interactive elements
+      const transitionMap = new Map<string, { property: string; duration: string; timing: string; count: number }>();
+      const interactiveEls = Array.from(document.querySelectorAll('a, button, [role="button"], input, select, textarea, [tabindex]')).slice(0, 100);
+      for (const el of interactiveEls) {
+        const s = getComputedStyle(el);
+        const t = s.transition;
+        if (t && t !== "all 0s ease 0s" && t !== "none") {
+          // Parse individual transitions
+          const parts = t.split(",").map(p => p.trim());
+          for (const part of parts) {
+            const m = part.match(/^(\S+)\s+(\S+)\s+(\S+)/);
+            if (m) {
+              const key = `${m[1]}-${m[2]}-${m[3]}`;
+              if (!transitionMap.has(key)) {
+                transitionMap.set(key, { property: m[1], duration: m[2], timing: m[3], count: 0 });
+              }
+              transitionMap.get(key)!.count++;
+            }
+          }
+        }
+      }
+      const transitions = Array.from(transitionMap.values()).sort((a, b) => b.count - a.count).slice(0, 10);
+
+      // Collect transforms
+      const transformSet = new Map<string, string>();
+      for (const el of allEls.slice(0, 200)) {
+        const s = getComputedStyle(el);
+        const t = s.transform;
+        if (t && t !== "none") {
+          transformSet.set(t, el.tagName.toLowerCase());
+        }
+      }
+      const transforms = Array.from(transformSet.entries()).slice(0, 5).map(([value, source]) => ({ value, source }));
+
+      // Collect CSS animations
+      const animationSet = new Map<string, string>();
+      for (const el of allEls.slice(0, 200)) {
+        const s = getComputedStyle(el);
+        const a = s.animationName;
+        if (a && a !== "none") {
+          animationSet.set(a, el.tagName.toLowerCase());
+        }
+      }
+      const animations = Array.from(animationSet.entries()).slice(0, 5).map(([name, source]) => ({ name, source }));
+
+      // Cursor styles
+      const cursorMap = new Map<string, number>();
+      for (const el of interactiveEls) {
+        const c = getComputedStyle(el).cursor;
+        if (c && c !== "auto") {
+          cursorMap.set(c, (cursorMap.get(c) || 0) + 1);
+        }
+      }
+      const cursors = Array.from(cursorMap.entries())
+        .map(([value, count]) => ({ value, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      // ═══════════════════════════════════
       // RETURN
       // ═══════════════════════════════════
 
@@ -418,6 +537,13 @@ export async function POST(request: NextRequest) {
           large: largeR,
         },
         shadows,
+        interactions: {
+          buttons: buttonStyles.slice(0, 6),
+          transitions,
+          transforms,
+          animations,
+          cursors,
+        },
         cssVariables,
       } satisfies ScrapedTokens;
     }, parsedUrl.hostname.replace(/^www\./, ""));
